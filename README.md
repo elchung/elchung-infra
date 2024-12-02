@@ -3,6 +3,8 @@
 Infrastructure setup using CDK to deploy resources for hosting elchung.com. Only manual step was certificate creation as
 cdk was having issues creating + verifying using DNS when manual creation would instantly verify
 
+I alos had to manually create an A record alias with cloudfront distribution
+
 ## Useful commands
 
 * `npm run build`   compile typescript to js

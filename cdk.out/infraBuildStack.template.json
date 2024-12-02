@@ -1,0 +1,1089 @@
+{
+ "Resources": {
+  "HostedZoneDB99F866": {
+   "Type": "AWS::Route53::HostedZone",
+   "Properties": {
+    "Name": "elchung.com."
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/HostedZone/Resource"
+   }
+  },
+  "elchungCertF7C68415": {
+   "Type": "AWS::CertificateManager::Certificate",
+   "Properties": {
+    "DomainName": "elchung.com",
+    "DomainValidationOptions": [
+     {
+      "DomainName": "elchung.com",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     }
+    ],
+    "SubjectAlternativeNames": [
+     "*.elchung.com"
+    ],
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "elchung-cert"
+     }
+    ],
+    "ValidationMethod": "DNS"
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/elchungCert/Resource"
+   }
+  },
+  "PipelineArtifactsBucket22248F97": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "aws:kms"
+       }
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/ArtifactsBucket/Resource"
+   }
+  },
+  "PipelineArtifactsBucketPolicyD4F9712A": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "PipelineArtifactsBucket22248F97"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "s3:*",
+       "Condition": {
+        "Bool": {
+         "aws:SecureTransport": "false"
+        }
+       },
+       "Effect": "Deny",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "PipelineArtifactsBucket22248F97",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "PipelineArtifactsBucket22248F97",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/ArtifactsBucket/Policy/Resource"
+   }
+  },
+  "PipelineRoleD68726F7": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "codepipeline.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/Role/Resource"
+   }
+  },
+  "PipelineRoleDefaultPolicyC7A05455": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "PipelineArtifactsBucket22248F97",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "PipelineArtifactsBucket22248F97",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "cloudFormation:Describe*",
+        "cloudFormation:Get*",
+        "cloudFormation:List*",
+        "cloudFormation:Validate*",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "iam:PassRole"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "PipelineBuildCodePipelineActionRoleD77A08E6",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "Pipelineupdateuswest2deploywebsiteCodePipelineActionRoleBFA53922",
+          "Arn"
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "PipelineRoleDefaultPolicyC7A05455",
+    "Roles": [
+     {
+      "Ref": "PipelineRoleD68726F7"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/Role/DefaultPolicy/Resource"
+   }
+  },
+  "PipelineC660917D": {
+   "Type": "AWS::CodePipeline::Pipeline",
+   "Properties": {
+    "ArtifactStore": {
+     "Location": {
+      "Ref": "PipelineArtifactsBucket22248F97"
+     },
+     "Type": "S3"
+    },
+    "Name": "elchung-dot-com-build-pipeline",
+    "PipelineType": "V2",
+    "RoleArn": {
+     "Fn::GetAtt": [
+      "PipelineRoleD68726F7",
+      "Arn"
+     ]
+    },
+    "Stages": [
+     {
+      "Actions": [
+       {
+        "ActionTypeId": {
+         "Category": "Source",
+         "Owner": "ThirdParty",
+         "Provider": "GitHub",
+         "Version": "1"
+        },
+        "Configuration": {
+         "Owner": "elchung",
+         "Repo": "elchung.com",
+         "Branch": "main",
+         "OAuthToken": "{{resolve:secretsmanager:elchung-oauth:SecretString:::}}",
+         "PollForSourceChanges": false
+        },
+        "Name": "source",
+        "OutputArtifacts": [
+         {
+          "Name": "source"
+         }
+        ],
+        "RunOrder": 1
+       }
+      ],
+      "Name": "Source"
+     },
+     {
+      "Actions": [
+       {
+        "ActionTypeId": {
+         "Category": "Build",
+         "Owner": "AWS",
+         "Provider": "CodeBuild",
+         "Version": "1"
+        },
+        "Configuration": {
+         "ProjectName": {
+          "Ref": "elchungProjF47A4295"
+         }
+        },
+        "InputArtifacts": [
+         {
+          "Name": "source"
+         }
+        ],
+        "Name": "Build",
+        "OutputArtifacts": [
+         {
+          "Name": "build"
+         }
+        ],
+        "RoleArn": {
+         "Fn::GetAtt": [
+          "PipelineBuildCodePipelineActionRoleD77A08E6",
+          "Arn"
+         ]
+        },
+        "RunOrder": 1
+       }
+      ],
+      "Name": "Build"
+     },
+     {
+      "Actions": [
+       {
+        "ActionTypeId": {
+         "Category": "Deploy",
+         "Owner": "AWS",
+         "Provider": "S3",
+         "Version": "1"
+        },
+        "Configuration": {
+         "BucketName": {
+          "Ref": "buildoutputbucketuswest223810018"
+         },
+         "Extract": "true",
+         "CannedACL": "public-read",
+         "CacheControl": "no-cache"
+        },
+        "InputArtifacts": [
+         {
+          "Name": "build"
+         }
+        ],
+        "Name": "deploy-website",
+        "RoleArn": {
+         "Fn::GetAtt": [
+          "Pipelineupdateuswest2deploywebsiteCodePipelineActionRoleBFA53922",
+          "Arn"
+         ]
+        },
+        "RunOrder": 1
+       }
+      ],
+      "Name": "update-us-west-2"
+     }
+    ]
+   },
+   "DependsOn": [
+    "PipelineRoleDefaultPolicyC7A05455",
+    "PipelineRoleD68726F7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/Resource"
+   }
+  },
+  "PipelineSourcesourceWebhookResourceD4AC72E9": {
+   "Type": "AWS::CodePipeline::Webhook",
+   "Properties": {
+    "Authentication": "GITHUB_HMAC",
+    "AuthenticationConfiguration": {
+     "SecretToken": "{{resolve:secretsmanager:elchung-oauth:SecretString:::}}"
+    },
+    "Filters": [
+     {
+      "JsonPath": "$.ref",
+      "MatchEquals": "refs/heads/{Branch}"
+     }
+    ],
+    "RegisterWithThirdParty": true,
+    "TargetAction": "source",
+    "TargetPipeline": {
+     "Ref": "PipelineC660917D"
+    },
+    "TargetPipelineVersion": 1
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/Source/source/WebhookResource"
+   }
+  },
+  "PipelineBuildCodePipelineActionRoleD77A08E6": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": "arn:aws:iam::192602193058:root"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/Build/Build/CodePipelineActionRole/Resource"
+   }
+  },
+  "PipelineBuildCodePipelineActionRoleDefaultPolicyC9CB73F8": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "codebuild:BatchGetBuilds",
+        "codebuild:StartBuild",
+        "codebuild:StopBuild"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "elchungProjF47A4295",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "PipelineBuildCodePipelineActionRoleDefaultPolicyC9CB73F8",
+    "Roles": [
+     {
+      "Ref": "PipelineBuildCodePipelineActionRoleD77A08E6"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/Build/Build/CodePipelineActionRole/DefaultPolicy/Resource"
+   }
+  },
+  "Pipelineupdateuswest2deploywebsiteCodePipelineActionRoleBFA53922": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": "arn:aws:iam::192602193058:root"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/update-us-west-2/deploy-website/CodePipelineActionRole/Resource"
+   }
+  },
+  "Pipelineupdateuswest2deploywebsiteCodePipelineActionRoleDefaultPolicy5D251026": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "buildoutputbucketuswest223810018",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "buildoutputbucketuswest223810018",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "s3:PutObjectAcl",
+        "s3:PutObjectVersionAcl"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetAtt": [
+            "buildoutputbucketuswest223810018",
+            "Arn"
+           ]
+          },
+          "/*"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "PipelineArtifactsBucket22248F97",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "PipelineArtifactsBucket22248F97",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "Pipelineupdateuswest2deploywebsiteCodePipelineActionRoleDefaultPolicy5D251026",
+    "Roles": [
+     {
+      "Ref": "Pipelineupdateuswest2deploywebsiteCodePipelineActionRoleBFA53922"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/Pipeline/update-us-west-2/deploy-website/CodePipelineActionRole/DefaultPolicy/Resource"
+   }
+  },
+  "CodeBuildGitHubCredsB58188F3": {
+   "Type": "AWS::CodeBuild::SourceCredential",
+   "Properties": {
+    "AuthType": "PERSONAL_ACCESS_TOKEN",
+    "ServerType": "GITHUB",
+    "Token": "{{resolve:secretsmanager:elchung-oauth:SecretString:::}}"
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/CodeBuildGitHubCreds/Resource"
+   }
+  },
+  "buildoutputbucketuswest223810018": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketName": {
+     "Fn::Join": [
+      "",
+      [
+       "build-output-us-west-2-",
+       {
+        "Ref": "AWS::AccountId"
+       }
+      ]
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "IgnorePublicAcls": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/build_output_bucket_us-west-2/Resource"
+   }
+  },
+  "buildoutputbucketuswest2Policy848BB527": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "buildoutputbucketuswest223810018"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "s3:*",
+       "Condition": {
+        "Bool": {
+         "aws:SecureTransport": "false"
+        }
+       },
+       "Effect": "Deny",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "buildoutputbucketuswest223810018",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "buildoutputbucketuswest223810018",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "s3:GetObject",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetAtt": [
+            "buildoutputbucketuswest223810018",
+            "Arn"
+           ]
+          },
+          "/*"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "s3:GetObject",
+       "Condition": {
+        "StringEquals": {
+         "AWS:SourceArn": {
+          "Fn::Join": [
+           "",
+           [
+            "arn:",
+            {
+             "Ref": "AWS::Partition"
+            },
+            ":cloudfront::",
+            {
+             "Ref": "AWS::AccountId"
+            },
+            ":distribution/",
+            {
+             "Ref": "elchung3DC0FD9B"
+            }
+           ]
+          ]
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::GetAtt": [
+            "buildoutputbucketuswest223810018",
+            "Arn"
+           ]
+          },
+          "/*"
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/build_output_bucket_us-west-2/Policy/Resource"
+   }
+  },
+  "accessloggingbucketA9799A44": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "AccessControl": "LogDeliveryWrite",
+    "BucketName": {
+     "Fn::Join": [
+      "",
+      [
+       "access-logging-us-west-2-",
+       {
+        "Ref": "AWS::AccountId"
+       }
+      ]
+     ]
+    },
+    "OwnershipControls": {
+     "Rules": [
+      {
+       "ObjectOwnership": "ObjectWriter"
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/access_logging_bucket/Resource"
+   }
+  },
+  "accessloggingbucketPolicy2A8B974A": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "accessloggingbucketA9799A44"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "s3:*",
+       "Condition": {
+        "Bool": {
+         "aws:SecureTransport": "false"
+        }
+       },
+       "Effect": "Deny",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "accessloggingbucketA9799A44",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "accessloggingbucketA9799A44",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/access_logging_bucket/Policy/Resource"
+   }
+  },
+  "elchungOrigin1S3OriginAccessControlCE491F79": {
+   "Type": "AWS::CloudFront::OriginAccessControl",
+   "Properties": {
+    "OriginAccessControlConfig": {
+     "Name": "infraBuildStackelchungOrigin1S3OriginAccessControl4D98FA3E",
+     "OriginAccessControlOriginType": "s3",
+     "SigningBehavior": "always",
+     "SigningProtocol": "sigv4"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/elchung/Origin1/S3OriginAccessControl/Resource"
+   }
+  },
+  "elchung3DC0FD9B": {
+   "Type": "AWS::CloudFront::Distribution",
+   "Properties": {
+    "DistributionConfig": {
+     "Aliases": [
+      "elchung.com",
+      "www.elchung.com"
+     ],
+     "CustomErrorResponses": [
+      {
+       "ErrorCode": 403,
+       "ResponseCode": 200,
+       "ResponsePagePath": "/index.html"
+      }
+     ],
+     "DefaultCacheBehavior": {
+      "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+      "Compress": true,
+      "TargetOriginId": "infraBuildStackelchungOrigin17F8B9FA2",
+      "ViewerProtocolPolicy": "redirect-to-https"
+     },
+     "DefaultRootObject": "index.html",
+     "Enabled": true,
+     "HttpVersion": "http2",
+     "IPV6Enabled": true,
+     "Logging": {
+      "Bucket": {
+       "Fn::GetAtt": [
+        "accessloggingbucketA9799A44",
+        "RegionalDomainName"
+       ]
+      }
+     },
+     "Origins": [
+      {
+       "DomainName": {
+        "Fn::GetAtt": [
+         "buildoutputbucketuswest223810018",
+         "RegionalDomainName"
+        ]
+       },
+       "Id": "infraBuildStackelchungOrigin17F8B9FA2",
+       "OriginAccessControlId": {
+        "Fn::GetAtt": [
+         "elchungOrigin1S3OriginAccessControlCE491F79",
+         "Id"
+        ]
+       },
+       "S3OriginConfig": {
+        "OriginAccessIdentity": ""
+       }
+      }
+     ],
+     "Restrictions": {
+      "GeoRestriction": {
+       "Locations": [
+        "US",
+        "CA"
+       ],
+       "RestrictionType": "whitelist"
+      }
+     },
+     "ViewerCertificate": {
+      "AcmCertificateArn": {
+       "Ref": "elchungCertF7C68415"
+      },
+      "MinimumProtocolVersion": "TLSv1.2_2021",
+      "SslSupportMethod": "sni-only"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/elchung/Resource"
+   }
+  },
+  "elchungProjRole97DC99C4": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "codebuild.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/elchungProj/Role/Resource"
+   }
+  },
+  "elchungProjRoleDefaultPolicy083342BB": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:aws:logs:us-west-2:192602193058:log-group:/aws/codebuild/",
+           {
+            "Ref": "elchungProjF47A4295"
+           },
+           ":*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:aws:logs:us-west-2:192602193058:log-group:/aws/codebuild/",
+           {
+            "Ref": "elchungProjF47A4295"
+           }
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "codebuild:BatchPutCodeCoverages",
+        "codebuild:BatchPutTestCases",
+        "codebuild:CreateReport",
+        "codebuild:CreateReportGroup",
+        "codebuild:UpdateReport"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:codebuild:us-west-2:192602193058:report-group/",
+          {
+           "Ref": "elchungProjF47A4295"
+          },
+          "-*"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "PipelineArtifactsBucket22248F97",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "PipelineArtifactsBucket22248F97",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "elchungProjRoleDefaultPolicy083342BB",
+    "Roles": [
+     {
+      "Ref": "elchungProjRole97DC99C4"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/elchungProj/Role/DefaultPolicy/Resource"
+   }
+  },
+  "elchungProjF47A4295": {
+   "Type": "AWS::CodeBuild::Project",
+   "Properties": {
+    "Artifacts": {
+     "Type": "CODEPIPELINE"
+    },
+    "Cache": {
+     "Type": "NO_CACHE"
+    },
+    "EncryptionKey": "alias/aws/s3",
+    "Environment": {
+     "ComputeType": "BUILD_GENERAL1_SMALL",
+     "Image": "aws/codebuild/standard:7.0",
+     "ImagePullCredentialsType": "CODEBUILD",
+     "PrivilegedMode": false,
+     "Type": "LINUX_CONTAINER"
+    },
+    "Name": "elchung-com-pipeline-project",
+    "ServiceRole": {
+     "Fn::GetAtt": [
+      "elchungProjRole97DC99C4",
+      "Arn"
+     ]
+    },
+    "Source": {
+     "BuildSpec": "{\n  \"version\": \"0.1\",\n  \"phases\": {\n    \"install\": {\n      \"commands\": [\n        \"npm install\"\n      ]\n    },\n    \"build\": {\n      \"commands\": [\n        \"npm run lint\",\n        \"npm run test\",\n        \"npm run deploy\"\n      ]\n    }\n  }\n}",
+     "Type": "CODEPIPELINE"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/elchungProj/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/3WPQUsDMRCFf0vv6bhtUc+6gr1Z2oPgRbLJtM5uminJxCIh/112u2WL4Om99/EmvCxh8VhBNdPnODe2mztqIO9Em07pc/zMgZPg/QrymqOg/WCPqt77KRVlMAjtyWjBo/b6gAFyPbG+fhOLMmzxRCd05BHyZnR97da/Y/PF3BUVV5Cfk+lQejy6i2zYkfmZ8CUXRfoIectueGjQqXnt9CuaRM5CfiVZp2bHKRisA1r0QtrFvv0XquvETeAWzTBptEUZx8nuA3uB/EJRAjVJiL3ard4CHcg/GYMx1uwlsOtP/8G3x6WoLcZhxvCb0Rfl2SK08e57WcHiAapZG4nmIXmhI8L2or9/E0o+3wEAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "infraBuildStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}
